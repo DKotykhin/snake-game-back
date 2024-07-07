@@ -1,4 +1,5 @@
 import { IsString, IsEmail, Length, Matches } from 'class-validator';
+import { User } from 'src/user/entities/user.entity';
 
 export class PasswordDto {
   @IsString()
@@ -22,4 +23,9 @@ export class SignUpDto extends SignInDto {
   @IsString()
   @Length(2, 30, { message: 'Name must be at least 2 characters' })
   userName: string;
+}
+
+export class UserWithTokenDto {
+  user: Partial<User>;
+  auth_token: string;
 }

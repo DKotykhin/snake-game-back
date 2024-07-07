@@ -2,7 +2,6 @@ import {
   Controller,
   Post,
   Body,
-  Res,
   Get,
   Param,
   UseGuards,
@@ -10,11 +9,16 @@ import {
   ClassSerializerInterceptor,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { Response } from 'express';
 
 import { User } from '../user/entities/user.entity';
 import { AuthService } from './auth.service';
-import { EmailDto, PasswordDto, SignInDto, SignUpDto } from './dto/auth.dto';
+import {
+  EmailDto,
+  PasswordDto,
+  SignInDto,
+  SignUpDto,
+  UserWithTokenDto,
+} from './dto/auth.dto';
 import { GetUser } from './decorators/get-user.decorator';
 import { StatusResponseDto } from './dto/status-response.dto';
 
@@ -35,11 +39,8 @@ export class AuthController {
   }
 
   @Post('/sign-in')
-  signIn(
-    @Body() signInDto: SignInDto,
-    @Res({ passthrough: true }) response: Response,
-  ): Promise<Partial<User>> {
-    return this.authService.signIn(signInDto, response);
+  signIn(@Body() signInDto: SignInDto): Promise<UserWithTokenDto> {
+    return this.authService.signIn(signInDto);
   }
 
   @Get('/confirm-email/:token')

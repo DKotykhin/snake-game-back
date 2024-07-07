@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Response } from 'express';
 import * as crypto from 'crypto';
 
 import { MailSenderService } from '../mail-sender/mail-sender.service';
@@ -12,7 +11,12 @@ import { UserService } from '../user/user.service';
 import { User } from '../user/entities/user.entity';
 import { PasswordHash } from '../utils/passwordHash';
 
-import { EmailDto, SignInDto, SignUpDto } from './dto/auth.dto';
+import {
+  EmailDto,
+  SignInDto,
+  SignUpDto,
+  UserWithTokenDto,
+} from './dto/auth.dto';
 import { StatusResponseDto } from './dto/status-response.dto';
 import { JwtPayload } from './dto/jwtPayload.dto';
 import { EmailConfirm } from './entities/email-confirm.entity';
@@ -92,10 +96,7 @@ export class AuthService {
     }
   }
 
-  async signIn(
-    signInDto: SignInDto,
-    response: Response,
-  ): Promise<Partial<User>> {
+  async signIn(signInDto: SignInDto): Promise<UserWithTokenDto> {
     const { email, password } = signInDto;
     const user = await this.userService.findByEmail(email);
     if (!user) {
@@ -139,10 +140,9 @@ export class AuthService {
 
     const payload: JwtPayload = { email };
     const auth_token = this.jwtService.sign(payload);
-    response.cookie('auth_token', auth_token, { httpOnly: true });
-    console.log('auth_token:', auth_token);
+    // console.log('auth_token:', auth_token);
 
-    return user;
+    return { user, auth_token };
   }
 
   async confirmEmail(token: string): Promise<StatusResponseDto> {
