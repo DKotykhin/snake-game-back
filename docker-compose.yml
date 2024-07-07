@@ -1,12 +1,12 @@
 services:
-  # game-app:
-  #   build: .
-  #   ports:
-  #     - "4004:4004"
-  #   depends_on:
-  #     - db
-  #   env_file:
-  #     - .env.stage.docker
+  game-app:
+    build: .
+    ports:
+      - "4004:4004"
+    depends_on:
+      - snake-db
+    env_file:
+      - .env.stage.docker
     # volumes:
     #   - .:/app  # mount the current directory to /app in the container
 
