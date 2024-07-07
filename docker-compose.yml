@@ -1,0 +1,32 @@
+services:
+  # game-app:
+  #   build: .
+  #   ports:
+  #     - "4004:4004"
+  #   depends_on:
+  #     - db
+  #   env_file:
+  #     - .env.stage.docker
+    # volumes:
+    #   - .:/app  # mount the current directory to /app in the container
+
+  snake-db:
+    container_name: snake-db
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: snake_game
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  adminer:
+    container_name: snake-adminer
+    image: adminer
+    ports:
+      - 8080:8080
+
+volumes:
+  pg_data:
