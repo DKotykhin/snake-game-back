@@ -18,7 +18,7 @@ export class MailSenderService {
     sgMail.setApiKey(this.configService.get('SG_API_KEY'));
     const msg = {
       to,
-      from: `"CoffeeDoor" <${this.configService.get('SG_EMAIL_ADDRESS')}>`,
+      from: `"Snake Game" <${this.configService.get('SG_EMAIL_ADDRESS')}>`,
       subject,
       html,
     };

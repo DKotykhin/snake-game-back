@@ -54,11 +54,50 @@ export class AuthService {
   async signUp(signUpDto: SignUpDto): Promise<Partial<User>> {
     const { email, password, userName } = signUpDto;
     const candidate = await this.userService.findByEmail(email);
-    if (candidate) {
+    if (candidate && candidate.isVerified) {
       throw new HttpException(
         `User with email ${email} already exists`,
         HttpStatus.BAD_REQUEST,
       );
+    } else if (candidate && !candidate.isVerified) {
+      if (candidate.emailConfirm?.expiredAt < new Date()) {
+        const token = this.cryptoToken();
+        this.mailSenderService.sendMail({
+          to: email,
+          subject: 'Email confirmation',
+          html: `
+                  <h2>Please, follow the link to confirm your email</h2>
+                  <h4>The link will expire within <strong>1 hour</strong></h4>
+                  <h4>If you don't try to login or register, ignore this mail</h4>
+                  <hr/>
+                  <br/>
+                  <a href='${this.configService.get('FRONTEND_URL')}/confirm-email/${token}'>Link for email confirmation</a>
+                `,
+        });
+        return;
+      } else {
+        const token = this.cryptoToken();
+        await this.mailSenderService.sendMail({
+          to: email,
+          subject: 'Email confirmation',
+          html: `
+                <h2>Please, follow the link to confirm your email</h2>
+                <h4>The link will expire within <strong>1 hour</strong></h4>
+                <h4>If you don't try to login or register, ignore this mail</h4>
+                <hr/>
+                <br/>
+                <a href='${this.configService.get('FRONTEND_URL')}/confirm-email/${token}'>Link for email confirmation</a>
+              `,
+        });
+        await this.emailConfirmRepository.save({
+          user: candidate,
+          token,
+          expiredAt: new Date(
+            new Date().getTime() + 1000 * 60 * 60,
+          ).toISOString(),
+        });
+        return;
+      }
     }
     try {
       const passwordHash = await PasswordHash.create(password);

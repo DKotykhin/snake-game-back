@@ -9,7 +9,10 @@ describe('UserRecordsController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UserRecordsController],
       providers: [UserRecordsService],
-    }).compile();
+    })
+      .overrideProvider(UserRecordsService)
+      .useValue({ create: jest.fn(), findByUserId: jest.fn() })
+      .compile();
 
     controller = module.get<UserRecordsController>(UserRecordsController);
   });
