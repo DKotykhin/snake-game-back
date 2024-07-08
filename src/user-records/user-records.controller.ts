@@ -5,6 +5,7 @@ import { UserRecordsService } from './user-records.service';
 import { UserRecord } from './entities/user-records.entity';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User } from '../user/entities/user.entity';
+import { SaveRecordDto } from './dto/saveRecord.dto';
 
 @Controller('user-records')
 @UseGuards(AuthGuard('jwt'))
@@ -17,7 +18,10 @@ export class UserRecordsController {
   }
 
   @Post('create')
-  async create(@Body() userRecord: UserRecord): Promise<UserRecord> {
-    return this.userRecordsService.create(userRecord);
+  async save(
+    @Body() userRecord: SaveRecordDto,
+    @GetUser() user: User,
+  ): Promise<UserRecord> {
+    return this.userRecordsService.save(userRecord, user.id);
   }
 }
