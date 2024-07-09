@@ -65,6 +65,11 @@ export class AuthService {
         token = candidate.emailConfirm.token;
       } else {
         token = this.cryptoToken();
+        Object.assign(candidate.emailConfirm, {
+          token,
+          expiredAt: new Date(new Date().getTime() + 1000 * 60 * 60),
+        });
+        await this.emailConfirmRepository.save(candidate.emailConfirm);
       }
       await this.mailSenderService.sendMail({
         to: email,
@@ -78,13 +83,6 @@ export class AuthService {
               <br/>
               <a href='${this.configService.get('FRONTEND_URL')}/confirm-email/${token}'>Link for email confirmation</a>
             `,
-      });
-      await this.emailConfirmRepository.save({
-        user: candidate,
-        token,
-        expiredAt: new Date(
-          new Date().getTime() + 1000 * 60 * 60,
-        ).toISOString(),
       });
       throw new HttpException(
         'Please confirm your email address. Link sent to email',
@@ -149,6 +147,11 @@ export class AuthService {
         token = user.emailConfirm.token;
       } else {
         token = this.cryptoToken();
+        Object.assign(user.emailConfirm, {
+          token,
+          expiredAt: new Date(new Date().getTime() + 1000 * 60 * 60),
+        });
+        await this.emailConfirmRepository.save(user.emailConfirm);
       }
       this.mailSenderService.sendMail({
         to: email,
@@ -219,29 +222,61 @@ export class AuthService {
     if (!user) {
       throw new HttpException('User not found', HttpStatus.BAD_REQUEST);
     }
-    let token: string;
-    if (user.resetPassword?.expiredAt > new Date()) {
-      token = user.resetPassword?.token;
-    } else {
-      token = this.cryptoToken();
+    if (!user.isVerified) {
+      throw new HttpException(
+        'Please confirm your email address',
+        HttpStatus.BAD_REQUEST,
+      );
     }
-    this.mailSenderService.sendMail({
-      to: user.email,
-      subject: 'Reset password',
-      html: `
-              <h2>Please, follow the link to set new password</h2>
-              <h4>The link will expire within <strong>1 hour</strong></h4>
-              <h4>If you don't restore your password ignore this mail</h4>
-              <hr/>
-              <br/>
-              <a href='${this.configService.get('FRONTEND_URL')}/reset-password/${token}'>Link for password reset</a>
-            `,
-    });
+    if (user.resetPassword?.id) {
+      let token: string;
+      if (user.resetPassword?.expiredAt > new Date()) {
+        token = user.resetPassword?.token;
+      } else {
+        token = this.cryptoToken();
+        Object.assign(user.resetPassword, {
+          token,
+          expiredAt: new Date(new Date().getTime() + 1000 * 60 * 60),
+        });
+        await this.resetPasswordRepository.save(user.resetPassword);
+      }
+      this.mailSenderService.sendMail({
+        to: user.email,
+        subject: 'Reset password',
+        html: `
+                <h2>Please, follow the link to set new password</h2>
+                <h4>Repeated email!</h4>
+                <h4>The link will expire within <strong>1 hour</strong></h4>
+                <h4>If you don't restore your password ignore this mail</h4>
+                <hr/>
+                <br/>
+                <a href='${this.configService.get('FRONTEND_URL')}/reset-password/${token}'>Link for password reset</a>
+              `,
+      });
+      throw new HttpException(
+        'Reset password link sent to email',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const token = this.cryptoToken();
     try {
       await this.resetPasswordRepository.save({
         user,
         token,
         expiredAt: new Date(new Date().getTime() + 1000 * 60 * 60),
+      });
+      this.mailSenderService.sendMail({
+        to: user.email,
+        subject: 'Reset password',
+        html: `
+                <h2>Please, follow the link to set new password</h2>
+                <h4>The link will expire within <strong>1 hour</strong></h4>
+                <h4>If you don't restore your password ignore this mail</h4>
+                <hr/>
+                <br/>
+                <a href='${this.configService.get('FRONTEND_URL')}/reset-password/${token}'>Link for password reset</a>
+              `,
       });
     } catch (error) {
       throw new HttpException(
