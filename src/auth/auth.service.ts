@@ -53,51 +53,43 @@ export class AuthService {
 
   async signUp(signUpDto: SignUpDto): Promise<Partial<User>> {
     const { email, password, userName } = signUpDto;
-    const candidate = await this.userService.findByEmail(email);
+    const candidate = await this.userService.findByEmailWithCredentials(email);
     if (candidate && candidate.isVerified) {
       throw new HttpException(
         `User with email ${email} already exists`,
         HttpStatus.BAD_REQUEST,
       );
     } else if (candidate && !candidate.isVerified) {
-      if (candidate.emailConfirm?.expiredAt < new Date()) {
-        const token = this.cryptoToken();
-        this.mailSenderService.sendMail({
-          to: email,
-          subject: 'Email confirmation',
-          html: `
-                  <h2>Please, follow the link to confirm your email</h2>
-                  <h4>The link will expire within <strong>1 hour</strong></h4>
-                  <h4>If you don't try to login or register, ignore this mail</h4>
-                  <hr/>
-                  <br/>
-                  <a href='${this.configService.get('FRONTEND_URL')}/confirm-email/${token}'>Link for email confirmation</a>
-                `,
-        });
-        return;
+      let token: string;
+      if (candidate.emailConfirm?.expiredAt > new Date()) {
+        token = candidate.emailConfirm.token;
       } else {
-        const token = this.cryptoToken();
-        await this.mailSenderService.sendMail({
-          to: email,
-          subject: 'Email confirmation',
-          html: `
-                <h2>Please, follow the link to confirm your email</h2>
-                <h4>The link will expire within <strong>1 hour</strong></h4>
-                <h4>If you don't try to login or register, ignore this mail</h4>
-                <hr/>
-                <br/>
-                <a href='${this.configService.get('FRONTEND_URL')}/confirm-email/${token}'>Link for email confirmation</a>
-              `,
-        });
-        await this.emailConfirmRepository.save({
-          user: candidate,
-          token,
-          expiredAt: new Date(
-            new Date().getTime() + 1000 * 60 * 60,
-          ).toISOString(),
-        });
-        return;
+        token = this.cryptoToken();
       }
+      await this.mailSenderService.sendMail({
+        to: email,
+        subject: 'Email confirmation',
+        html: `
+              <h2>Please, follow the link to confirm your email</h2>
+              <h4>Repeated Email!</h4>
+              <h4>The link will expire within <strong>1 hour</strong></h4>
+              <h4>If you don't try to login or register, ignore this mail</h4>
+              <hr/>
+              <br/>
+              <a href='${this.configService.get('FRONTEND_URL')}/confirm-email/${token}'>Link for email confirmation</a>
+            `,
+      });
+      await this.emailConfirmRepository.save({
+        user: candidate,
+        token,
+        expiredAt: new Date(
+          new Date().getTime() + 1000 * 60 * 60,
+        ).toISOString(),
+      });
+      throw new HttpException(
+        'Please confirm your email address. Link sent to email',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     try {
       const passwordHash = await PasswordHash.create(password);
@@ -137,7 +129,7 @@ export class AuthService {
 
   async signIn(signInDto: SignInDto): Promise<UserWithTokenDto> {
     const { email, password } = signInDto;
-    const user = await this.userService.findByEmail(email);
+    const user = await this.userService.findByEmailWithCredentials(email);
     if (!user) {
       throw new HttpException(
         'Incorrect login or password',
@@ -152,23 +144,27 @@ export class AuthService {
     );
 
     if (!user.isVerified) {
-      if (user.emailConfirm?.expiredAt < new Date()) {
-        const token = this.cryptoToken();
-        this.mailSenderService.sendMail({
-          to: email,
-          subject: 'Email confirmation',
-          html: `
-                  <h2>Please, follow the link to confirm your email</h2>
-                  <h4>The link will expire within <strong>1 hour</strong></h4>
-                  <h4>If you don't try to login or register, ignore this mail</h4>
-                  <hr/>
-                  <br/>
-                  <a href='${this.configService.get('FRONTEND_URL')}/confirm-email/${token}'>Link for email confirmation</a>
-                `,
-        });
+      let token: string;
+      if (user.emailConfirm?.expiredAt > new Date()) {
+        token = user.emailConfirm.token;
+      } else {
+        token = this.cryptoToken();
       }
+      this.mailSenderService.sendMail({
+        to: email,
+        subject: 'Email confirmation',
+        html: `
+                <h2>Please, follow the link to confirm your email</h2>
+                <h4>Repeated Email!</h4>
+                <h4>The link will expire within <strong>1 hour</strong></h4>
+                <h4>If you don't try to login or register, ignore this mail</h4>
+                <hr/>
+                <br/>
+                <a href='${this.configService.get('FRONTEND_URL')}/confirm-email/${token}'>Link for email confirmation</a>
+              `,
+      });
       throw new HttpException(
-        'Please confirm your email address',
+        'Please confirm your email address. Link sent to email',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -219,11 +215,16 @@ export class AuthService {
 
   async resetPassword(emailDto: EmailDto): Promise<StatusResponseDto> {
     const { email } = emailDto;
-    const user = await this.userService.findByEmail(email);
+    const user = await this.userService.findByEmailWithCredentials(email);
     if (!user) {
       throw new HttpException('User not found', HttpStatus.BAD_REQUEST);
     }
-    const token = this.cryptoToken();
+    let token: string;
+    if (user.resetPassword?.expiredAt > new Date()) {
+      token = user.resetPassword?.token;
+    } else {
+      token = this.cryptoToken();
+    }
     this.mailSenderService.sendMail({
       to: user.email,
       subject: 'Reset password',

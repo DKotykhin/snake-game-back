@@ -22,10 +22,15 @@ export class UserService {
     return this.userRepository.findOne({ where: { email } });
   }
 
+  async findByEmailWithCredentials(email: string): Promise<User> {
+    return this.userRepository.findOne({
+      where: { email },
+      relations: ['emailConfirm', 'resetPassword'],
+    });
+  }
+
   async create(createUserDto: CreateUserDto): Promise<User> {
     try {
-      // const user = new User(createUserDto);
-      // return await this.entityManager.save(User, user);
       return await this.entityManager.save(User, createUserDto);
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
